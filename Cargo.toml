@@ -1,0 +1,9 @@
+[package]
+name = "GoogleMapsClone"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+odbc-api = "7.2.3"
+anyhow = "1.0"
+thiserror = "1.0"
