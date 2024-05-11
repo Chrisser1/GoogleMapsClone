@@ -1,9 +1,12 @@
 mod database;
 mod node;
 mod utils;
+mod way;
+mod tag;
 
 use database::Database;
 use node::Node;
+use tag::Tag;
 use std::process;
 
 const BATCH_SIZE: usize = 5000; // Adjust based on your system's capability and the expected dataset size
@@ -21,7 +24,7 @@ fn main() {
         process::exit(1);
     });
 
-    // Create a sample nodes
+    // Define the sample nodes with tags
     let nodes = vec![
         Node {
             id: 1,
@@ -32,6 +35,10 @@ fn main() {
             changeset: 100,
             uid: 42,
             user: "username".to_string(),
+            tags: vec![
+                Tag { key: "amenity".to_string(), value: "cafe".to_string() },
+                Tag { key: "open".to_string(), value: "yes".to_string() },
+            ],
         },
         Node {
             id: 2,
@@ -42,20 +49,34 @@ fn main() {
             changeset: 120,
             uid: 41,
             user: "username".to_string(),
-        },
-        // Add more nodes as needed
+            tags: vec![
+                Tag { key: "amenity".to_string(), value: "library".to_string() },
+                Tag { key: "open".to_string(), value: "yes".to_string() },
+                Tag { key: "floors".to_string(), value: "2".to_string() },
+            ],
+        }
     ];
 
-    // Tag details
-    let keys = vec!["category", "idk"];
-    let values = vec!["landmark", "hello"];
+    // // Try to insert a node and a tag
+    // match database.insert_node_and_tag(&nodes) {
+    //     Ok(_) => println!("Node and tag inserted successfully."),
+    //     Err(e) => {
+    //         eprintln!("Error inserting node and tag: {}", e);
+    //         process::exit(1);
+    //     }
+    // }
 
-    // Try to insert a node and a tag
-    match database.insert_node_and_tag(&nodes, &keys, &values) {
-        Ok(_) => println!("Node and tag inserted successfully."),
+    // Query nodes with a version greater than 2 to retrieve some of the newly inserted nodes
+    match database.query_nodes(1) {
+        Ok(nodes) => {
+            for node in nodes {
+                println!("Retrieved node with ID: {}, Tags: {:?}", node.id, node.tags);
+            }
+        },
         Err(e) => {
-            eprintln!("Error inserting node and tag: {}", e);
+            eprintln!("Error querying nodes: {}", e);
             process::exit(1);
         }
     }
+
 }
