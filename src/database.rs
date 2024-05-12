@@ -83,7 +83,7 @@ impl Database {
     ///
     /// # Returns
     /// A result that, if Ok, signifies successful insertion of all ways, tags and way_nodes, or if Err, contains an error.
-    pub fn inser_way_with_tag_and_ref(
+    pub fn inser_way_with_tag_and_way_nodes(
         &self,
         ways: &[Way],
     ) -> Result<(), NodeQueryError> {
@@ -91,7 +91,7 @@ impl Database {
 
         // Try to insert ways
         match self.insert_way(&conn, ways) {
-            Ok(_) => println!("Nodes/note inserted successfully."),
+            Ok(_) => println!("Ways inserted successfully."),
             Err(e) => {
                 eprintln!("Error inserting node: {}", e);
                 process::exit(1);

@@ -94,35 +94,34 @@ fn main() {
         }
     ];
 
-    // Try to insert a node and a tag
-    match database.insert_node_and_tag(&nodes) {
-        Ok(_) => println!("Inserted successfully."),
-        Err(e) => {
-            eprintln!("Error inserting node and tag: {}", e);
-            process::exit(1);
-        }
-    }
-
-    // Try to insert a node and a tag
-    match database.inser_way_with_tag_and_ref(&ways) {
-        Ok(_) => println!("Node and tag inserted successfully."),
-        Err(e) => {
-            eprintln!("Error inserting way with tag and ref: {}", e);
-            process::exit(1);
-        }
-    }
-
-    // // Query nodes with a version greater than 2 to retrieve some of the newly inserted nodes
-    // match database.query_nodes(1) {
-    //     Ok(nodes) => {
-    //         for node in nodes {
-    //             println!("Retrieved node with ID: {}, Tags: {:?}", node.id, node.tags);
-    //         }
-    //     },
+    // // Try to insert a node and a tag
+    // match database.insert_node_and_tag(&nodes) {
+    //     Ok(_) => println!("Inserted successfully."),
     //     Err(e) => {
-    //         eprintln!("Error querying nodes: {}", e);
+    //         eprintln!("Error inserting node and tag: {}", e);
     //         process::exit(1);
     //     }
     // }
 
+    // // Try to insert a node and a tag
+    // match database.inser_way_with_tag_and_way_nodes(&ways) {
+    //     Ok(_) => println!("Node and tag inserted successfully."),
+    //     Err(e) => {
+    //         eprintln!("Error inserting way with tag and ref: {}", e);
+    //         process::exit(1);
+    //     }
+    // }
+
+    // Query nodes with a version greater than 2 to retrieve some of the newly inserted nodes
+    match database.query_nodes(1) {
+        Ok(nodes) => {
+            for node in nodes {
+                println!("Retrieved node with ID: {}, Tags: {:?}", node.id, node.tags);
+            }
+        },
+        Err(e) => {
+            eprintln!("Error querying nodes: {}", e);
+            process::exit(1);
+        }
+    }
 }

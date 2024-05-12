@@ -411,7 +411,7 @@
                         <mxRectangle width="220" height="30" as="alternateBounds"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="23" style="edgeStyle=none;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="C-vyLk0tnHw3VtMMgP7b-24" target="14">
+                <mxCell id="23" style="edgeStyle=none;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=ERzeroToMany;startArrow=ERone;startFill=0;endFill=1;" edge="1" parent="1" source="C-vyLk0tnHw3VtMMgP7b-24" target="14">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="8RviuB65_aC5L3lGe_Z9-119" value="Relation_tag" style="shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;align=center;resizeLast=1;" vertex="1" parent="1">
