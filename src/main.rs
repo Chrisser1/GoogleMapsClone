@@ -3,10 +3,13 @@ mod node;
 mod utils;
 mod way;
 mod tag;
+mod way_node;
 
 use database::Database;
 use node::Node;
 use tag::Tag;
+use way::Way;
+use way_node::WayNode;
 use std::process;
 
 const BATCH_SIZE: usize = 5000; // Adjust based on your system's capability and the expected dataset size
@@ -57,26 +60,69 @@ fn main() {
         }
     ];
 
-    // // Try to insert a node and a tag
-    // match database.insert_node_and_tag(&nodes) {
-    //     Ok(_) => println!("Node and tag inserted successfully."),
-    //     Err(e) => {
-    //         eprintln!("Error inserting node and tag: {}", e);
-    //         process::exit(1);
-    //     }
-    // }
-
-    // Query nodes with a version greater than 2 to retrieve some of the newly inserted nodes
-    match database.query_nodes(1) {
-        Ok(nodes) => {
-            for node in nodes {
-                println!("Retrieved node with ID: {}, Tags: {:?}", node.id, node.tags);
-            }
+    let ways = vec![
+        Way {
+            id: 1,
+            version: 1,
+            timestamp: "2024-05-10 12:36:56".to_string(),
+            changeset: 32,
+            uid: 23,
+            user: "username".to_string(),
+            nodes: vec![
+                WayNode { way_id: 1, ref_id: 1 }
+            ],
+            tags: vec![
+                Tag { key: "amenity".to_string(), value: "cafe".to_string() },
+                Tag { key: "open".to_string(), value: "yes".to_string() },
+            ],
         },
+        Way {
+            id: 2,
+            version: 2,
+            timestamp: "2024-05-11 12:36:56".to_string(),
+            changeset: 12,
+            uid: 43,
+            user: "username".to_string(),
+            nodes: vec![
+                WayNode { way_id: 2, ref_id: 2 }
+            ],
+            tags: vec![
+                Tag { key: "amenity".to_string(), value: "library".to_string() },
+                Tag { key: "open".to_string(), value: "yes".to_string() },
+                Tag { key: "floors".to_string(), value: "2".to_string() },
+            ],
+        }
+    ];
+
+    // Try to insert a node and a tag
+    match database.insert_node_and_tag(&nodes) {
+        Ok(_) => println!("Inserted successfully."),
         Err(e) => {
-            eprintln!("Error querying nodes: {}", e);
+            eprintln!("Error inserting node and tag: {}", e);
             process::exit(1);
         }
     }
+
+    // Try to insert a node and a tag
+    match database.inser_way_with_tag_and_ref(&ways) {
+        Ok(_) => println!("Node and tag inserted successfully."),
+        Err(e) => {
+            eprintln!("Error inserting way with tag and ref: {}", e);
+            process::exit(1);
+        }
+    }
+
+    // // Query nodes with a version greater than 2 to retrieve some of the newly inserted nodes
+    // match database.query_nodes(1) {
+    //     Ok(nodes) => {
+    //         for node in nodes {
+    //             println!("Retrieved node with ID: {}, Tags: {:?}", node.id, node.tags);
+    //         }
+    //     },
+    //     Err(e) => {
+    //         eprintln!("Error querying nodes: {}", e);
+    //         process::exit(1);
+    //     }
+    // }
 
 }
