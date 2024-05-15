@@ -7,6 +7,13 @@ pub struct Tag {
 }
 
 impl Tag {
+    pub fn new(key: String, value: String) -> Self {
+        Tag {
+            key,
+            value,
+        }
+    }
+
     /// Provides descriptions of the internal buffer structures for ODBC connections, describing
     /// each field of the Tag struct in terms of database interaction.
     ///
@@ -19,25 +26,5 @@ impl Tag {
             BufferDesc::Text { max_str_len: 128 },  // key
             BufferDesc::Text { max_str_len: 128 },  // value
         ]
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum TagType {
-    Node,
-    Way,
-    Relation,
-    Other(&'static str),  // Use &'static str to allow literal string references
-}
-
-// Example of usage
-impl TagType {
-    pub fn as_str(&self) -> &str {
-        match self {
-            TagType::Node => "node",
-            TagType::Way => "way",
-            TagType::Relation => "relation",
-            TagType::Other(s) => s,
-        }
     }
 }

@@ -8,6 +8,13 @@ pub struct WayNode {
 
 
 impl WayNode {
+    pub fn new(way_id: i64, ref_id: i64) -> Self {
+        WayNode {
+            way_id,
+            ref_id,
+        }
+    }
+
     /// Provides descriptions of the internal buffer structures for ODBC connections, describing
     /// each field of the WayNode struct in terms of database interaction.
     ///

@@ -4,9 +4,13 @@ mod utils;
 mod way;
 mod tag;
 mod way_node;
+mod member;
+mod relations;
 
 use database::Database;
+use member::Member;
 use node::Node;
+use relations::Relation;
 use tag::Tag;
 use way::Way;
 use way_node::WayNode;
@@ -94,34 +98,89 @@ fn main() {
         }
     ];
 
-    // // Try to insert a node and a tag
-    // match database.insert_node_and_tag(&nodes) {
-    //     Ok(_) => println!("Inserted successfully."),
-    //     Err(e) => {
-    //         eprintln!("Error inserting node and tag: {}", e);
-    //         process::exit(1);
-    //     }
-    // }
-
-    // // Try to insert a node and a tag
-    // match database.inser_way_with_tag_and_way_nodes(&ways) {
-    //     Ok(_) => println!("Node and tag inserted successfully."),
-    //     Err(e) => {
-    //         eprintln!("Error inserting way with tag and ref: {}", e);
-    //         process::exit(1);
-    //     }
-    // }
-
-    // Query nodes with a version greater than 2 to retrieve some of the newly inserted nodes
-    match database.query_nodes(1) {
-        Ok(nodes) => {
-            for node in nodes {
-                println!("Retrieved node with ID: {}, Tags: {:?}", node.id, node.tags);
-            }
+    let relations = vec![
+        Relation {
+            id: 1,
+            version: 234,
+            timestamp: "Hello Lukas".to_string(),
+            changeset: 123,
+            uid: 321321,
+            user: "Lukas".to_string(),
+            member: vec![
+                Member {
+                    id: 1,
+                    ref_id: 1,
+                    maps_type: utils::MapsType::Way,
+                    role: "".to_string()
+                }
+            ],
+            tags: vec![
+                Tag { key: "amenity".to_string(), value: "library".to_string() },
+                Tag { key: "open".to_string(), value: "yes".to_string() },
+                Tag { key: "floors".to_string(), value: "2".to_string() },
+            ],
         },
+        Relation {
+            id: 2,
+            version: 434,
+            timestamp: "Hello Christoffer".to_string(),
+            changeset: 321,
+            uid: 3213,
+            user: "Christoffer".to_string(),
+            member: vec![
+                Member {
+                    id: 2,
+                    ref_id: 1,
+                    maps_type: utils::MapsType::Relation,
+                    role: "".to_string()
+                },
+
+            ],
+            tags: vec![
+                Tag { key: "amenity".to_string(), value: "library".to_string() },
+                Tag { key: "open".to_string(), value: "yes".to_string() },
+                Tag { key: "floors".to_string(), value: "2".to_string() },
+            ],
+        },
+    ];
+
+    // Try to insert nodes
+    match database.insert_node_and_tag(&nodes) {
+        Ok(_) => println!("----------------"),
         Err(e) => {
-            eprintln!("Error querying nodes: {}", e);
+            eprintln!("Error inserting node and tag: {}", e);
             process::exit(1);
         }
     }
+
+    // Try to insert ways
+    match database.inser_way_with_tag_and_way_nodes(&ways) {
+        Ok(_) => println!("----------------"),
+        Err(e) => {
+            eprintln!("Error inserting way with tag and ref: {}", e);
+            process::exit(1);
+        }
+    }
+
+    // Try to insert ways
+    match database.inser_relation_with_tag_and_member(&relations) {
+        Ok(_) => println!("----------------"),
+        Err(e) => {
+            eprintln!("Error inserting way with tag and ref: {}", e);
+            process::exit(1);
+        }
+    }
+
+    // // Query nodes with a version greater than 2 to retrieve some of the newly inserted nodes
+    // match database.query_nodes(1) {
+    //     Ok(nodes) => {
+    //         for node in nodes {
+    //             println!("Retrieved node with ID: {}, Tags: {:?}", node.id, node.tags);
+    //         }
+    //     },
+    //     Err(e) => {
+    //         eprintln!("Error querying nodes: {}", e);
+    //         process::exit(1);
+    //     }
+    // }
 }

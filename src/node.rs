@@ -1,37 +1,5 @@
 use odbc_api::buffers::BufferDesc;
-use crate::tag::Tag;
-
-/// Represents a pairing of a node ID with a tag.
-#[derive(Debug, Clone)]
-pub struct NodeTag {
-    pub node_id: i64,
-    pub tag: Tag,
-}
-
-impl NodeTag {
-    /// Collects node IDs, tag keys, and tag values from a slice of NodeTag structs.
-    ///
-    /// # Arguments
-    /// * `node_tags` - A slice of NodeTag structs to collect data from.
-    ///
-    /// # Returns
-    /// A tuple of three vectors containing node IDs, tag keys, and tag values respectively.
-    pub fn collect_tag_data(node_tags: &[NodeTag]) -> (Vec<i64>, Vec<&str>, Vec<&str>) {
-        let mut ids = Vec::new();
-        let mut keys = Vec::new();
-        let mut values = Vec::new();
-
-        for node_tag in node_tags {
-            ids.push(node_tag.node_id);
-            keys.push(node_tag.tag.key.as_str());
-            values.push(node_tag.tag.value.as_str());
-        }
-
-        (ids, keys, values)
-    }
-}
-
-
+use crate::{tag::Tag, utils::MapsTag};
 /// Represents a geographic node with various properties and metadata.
 ///
 /// # Fields
@@ -58,6 +26,20 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn new(id: i64, lat: f64, lon: f64, version: i32, timestamp: String, changeset: i64, uid: i64, user: String, tags: Vec<Tag>) -> Self {
+        Node {
+            id,
+            lat,
+            lon,
+            version,
+            timestamp,
+            changeset,
+            uid,
+            user,
+            tags,
+        }
+    }
+
     /// Extracts references from a slice of nodes based on a provided extractor function.
     ///
     /// # Arguments
@@ -95,11 +77,11 @@ impl Node {
     /// * `nodes` - A slice of Node structs from which node IDs and tags are extracted.
     ///
     /// # Returns
-    /// A vector of NodeTag structs, each containing a node ID and a corresponding tag.
-    pub fn extract_node_tags<'a>(nodes: &'a [Self]) -> Vec<NodeTag> {
+    /// A vector of MapsTag structs, each containing a node ID and a corresponding tag.
+    pub fn extract_node_tags<'a>(nodes: &'a [Self]) -> Vec<MapsTag> {
         nodes.iter()
-            .flat_map(|node| node.tags.iter().map(move |tag| NodeTag {
-                node_id: node.id,
+            .flat_map(|node| node.tags.iter().map(move |tag| MapsTag {
+                id: node.id,
                 tag: tag.clone(),
             }))
             .collect()

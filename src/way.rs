@@ -1,36 +1,5 @@
-use crate::{tag::Tag, way_node::WayNode};
+use crate::{tag::Tag, utils::MapsTag, way_node::WayNode};
 use odbc_api::buffers::BufferDesc;
-
-/// Represents a pairing of a way ID with a tag.
-#[derive(Debug, Clone)]
-pub struct WayTag {
-    pub way_id: i64,
-    pub tag: Tag,
-}
-
-impl WayTag {
-    /// Collects node IDs, tag keys, and tag values from a slice of WayTag structs.
-    ///
-    /// # Arguments
-    /// * `node_tags` - A slice of WayTag structs to collect data from.
-    ///
-    /// # Returns
-    /// A tuple of three vectors containing node IDs, tag keys, and tag values respectively.
-    pub fn collect_tag_data(node_tags: &[WayTag]) -> (Vec<i64>, Vec<&str>, Vec<&str>) {
-        let mut ids = Vec::new();
-        let mut keys = Vec::new();
-        let mut values = Vec::new();
-
-        for node_tag in node_tags {
-            ids.push(node_tag.way_id);
-            keys.push(node_tag.tag.key.as_str());
-            values.push(node_tag.tag.value.as_str());
-        }
-
-        (ids, keys, values)
-    }
-}
-
 
 #[derive(Debug, Clone)]
 pub struct Way {
@@ -40,8 +9,8 @@ pub struct Way {
     pub changeset: i64,
     pub uid: i64,
     pub user: String,
-    pub nodes: Vec<WayNode>,  // List of node references
-    pub tags: Vec<Tag>,       // List of tags
+    pub nodes: Vec<WayNode>,
+    pub tags: Vec<Tag>,
 }
 
 impl Way {
@@ -93,11 +62,11 @@ impl Way {
     /// * `ways` - A slice of way structs from which way IDs and tags are extracted.
     ///
     /// # Returns
-    /// A vector of WayTag structs, each containing a way ID and a corresponding tag.
-    pub fn extract_way_tags<'a>(ways: &'a [Self]) -> Vec<WayTag> {
+    /// A vector of MapsTag structs, each containing a way ID and a corresponding tag.
+    pub fn extract_way_tags<'a>(ways: &'a [Self]) -> Vec<MapsTag> {
         ways.iter()
-            .flat_map(|way| way.tags.iter().map(move |tag| WayTag {
-                way_id: way.id,
+            .flat_map(|way| way.tags.iter().map(move |tag| MapsTag {
+                id: way.id,
                 tag: tag.clone(),
             }))
             .collect()

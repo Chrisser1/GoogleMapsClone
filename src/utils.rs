@@ -88,6 +88,7 @@ pub fn parse_i32(bytes: Option<&[u8]>) -> Result<i32, ParseError> {
 }
 
 use thiserror::Error;
+use crate::tag::Tag;
 
 /// Custom error type that can encapsulate both database errors and parsing errors
 #[derive(Error, Debug)]
@@ -96,4 +97,53 @@ pub enum NodeQueryError {
     DatabaseError(#[from] odbc_api::Error),
     #[error("Parsing error: {0}")]
     ParseError(#[from] ParseError),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MapsType {
+    Node,
+    Way,
+    Relation,
+    Other(&'static str),  // Use &'static str to allow literal string references
+}
+
+impl MapsType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            MapsType::Node => "node",
+            MapsType::Way => "way",
+            MapsType::Relation => "relation",
+            MapsType::Other(s) => s,
+        }
+    }
+}
+
+/// Represents a pairing of a way ID with a tag.
+#[derive(Debug, Clone)]
+pub struct MapsTag {
+    pub id: i64,
+    pub tag: Tag,
+}
+
+impl MapsTag {
+    /// Collects maps IDs, tag keys, and tag values from a slice of MapsTag structs.
+    ///
+    /// # Arguments
+    /// * `maps_tags` - A slice of MapsTag structs to collect data from.
+    ///
+    /// # Returns
+    /// A tuple of three vectors containing maps IDs, tag keys, and tag values respectively.
+    pub fn collect_tag_data(maps_tags: &[MapsTag]) -> (Vec<i64>, Vec<&str>, Vec<&str>) {
+        let mut ids = Vec::new();
+        let mut keys = Vec::new();
+        let mut values = Vec::new();
+
+        for maps_tag in maps_tags {
+            ids.push(maps_tag.id);
+            keys.push(maps_tag.tag.key.as_str());
+            values.push(maps_tag.tag.value.as_str());
+        }
+
+        (ids, keys, values)
+    }
 }

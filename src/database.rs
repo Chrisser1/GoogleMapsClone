@@ -4,7 +4,7 @@ use odbc_api::{
 };
 use std::{process::{self, id}, result::Result};
 
-use crate::{node::{self, Node, NodeTag}, tag::{Tag, TagType}, utils::{parse_f64, parse_i32, parse_i64, parse_string, NodeQueryError}, way::{self, Way, WayTag}, way_node::{self, WayNode}, BATCH_SIZE};
+use crate::{member::{self, Member}, node::{self, Node}, relations::Relation, tag::Tag, utils::{parse_f64, parse_i32, parse_i64, parse_string, MapsTag, MapsType, NodeQueryError}, way::{self, Way}, way_node::{self, WayNode}, BATCH_SIZE};
 
 /// `Database` holds the ODBC environment and connection configuration.
 /// Structure representing the database connectivity configuration.
@@ -63,10 +63,10 @@ impl Database {
         let node_tags = Node::extract_node_tags(nodes);
 
         // Collect the node IDs, keys, and values using the new function
-        let (node_ids, keys, values) = NodeTag::collect_tag_data(&node_tags);
+        let (node_ids, keys, values) = MapsTag::collect_tag_data(&node_tags);
 
         // Try to insert a tag to the node
-        match self.insert_tag(&conn, &node_ids, &keys, &values, TagType::Node) {
+        match self.insert_tag(&conn, &node_ids, &keys, &values, MapsType::Node) {
             Ok(_) => println!("Tag inserted successfully."),
             Err(e) => {
                 eprintln!("Error inserting tag: {}", e);
@@ -102,10 +102,10 @@ impl Database {
         let way_tags = Way::extract_way_tags(ways);
 
         // Collect the way IDs, keys, and values using the new function
-        let (way_ids, keys, values) = WayTag::collect_tag_data(&way_tags);
+        let (way_ids, keys, values) = MapsTag::collect_tag_data(&way_tags);
 
-        // Try to insert a tag to the node
-        match self.insert_tag(&conn, &way_ids, &keys, &values, TagType::Way) {
+        // Try to insert a tag to the way
+        match self.insert_tag(&conn, &way_ids, &keys, &values, MapsType::Way) {
             Ok(_) => println!("Tag inserted successfully."),
             Err(e) => {
                 eprintln!("Error inserting tag: {}", e);
@@ -120,7 +120,7 @@ impl Database {
         match self.insert_way_node(&conn, way_nodes_borrowed_slice) {
             Ok(_) => println!("WayNode inserted successfully."),
             Err(e) => {
-                eprintln!("Error inserting tag: {}", e);
+                eprintln!("Error inserting WayNode: {}", e);
                 process::exit(1);
             }
         }
@@ -128,6 +128,60 @@ impl Database {
         Ok(())
     }
 
+    /// Inserts multiple relations, their associated tags and members into the database within a single transaction.
+    ///
+    /// # Arguments
+    /// * `relation` - A slice of `Relation` data to insert.
+    ///
+    /// # Returns
+    /// A result that, if Ok, signifies successful insertion of all ways, tags and way_nodes, or if Err, contains an error.
+    pub fn inser_relation_with_tag_and_member(
+        &self,
+        relations: &[Relation],
+    ) -> Result<(), NodeQueryError> {
+        let conn = self.get_connection()?;
+
+        // Try to insert relations
+        match self.insert_relation(&conn, relations) {
+            Ok(_) => println!("relations inserted successfully."),
+            Err(e) => {
+                eprintln!("Error inserting node: {}", e);
+                process::exit(1);
+            }
+        }
+
+        // Get relation ids and tags in one
+        let relation_tags = Relation::extract_relation_tags(relations);
+
+        // Collect the relation IDs, keys, and values using the new function
+        let (relation_ids, keys, values) = MapsTag::collect_tag_data(&relation_tags);
+
+        // Try to insert a tag to the relation
+        match self.insert_tag(&conn, &relation_ids, &keys, &values, MapsType::Relation) {
+            Ok(_) => println!("Tag inserted successfully."),
+            Err(e) => {
+                eprintln!("Error inserting tag: {}", e);
+                process::exit(1);
+            }
+        }
+
+        let relation_id_refs: Vec<&i64> = Relation::extract(relations, |relation| &relation.id);
+        let relation_id_slice: Vec<i64> = relation_id_refs.iter().map(|&&id| id).collect();
+        let relation_id_borrowed_slice: &[i64] = &relation_id_slice;
+
+        let members = Relation::extract_members(relations);
+        let members_borrowed_slice: &[Member] = &members;
+        // Try to insert a tag to the node
+        match self.insert_member(&conn, relation_id_borrowed_slice, members_borrowed_slice) {
+            Ok(_) => println!("Member inserted successfully."),
+            Err(e) => {
+                eprintln!("Error inserting member: {}", e);
+                process::exit(1);
+            }
+        }
+
+        Ok(())
+    }
     /// Inserts a node or nodes into the database.
     ///
     /// # Arguments
@@ -347,6 +401,7 @@ impl Database {
     /// * `ids` - Identifier of the node, way or relation to which the tag is associated.
     /// * `keys` - Key of the tag/tags.
     /// * `values` - Value of the tag/tags.
+    /// * `maps_type` - Type of maps e.g. way, node or relation.
     ///
     /// # Returns
     /// A result that, if Ok, signifies successful insertion, or if Err, contains an error.
@@ -356,9 +411,9 @@ impl Database {
         ids: &[i64],
         keys: &[&str],
         values: &[&str],
-        tag_type: TagType,
+        maps_type: MapsType,
     ) -> Result<(), odbc_api::Error> {
-        let table = tag_type.as_str();
+        let table = maps_type.as_str();
         let sql = format!(
             "INSERT INTO [DenmarkMapsDB].[dbo].[{table}_tags] ({table}_id, [key], value) VALUES (?, ?, ?);",
         );
@@ -407,9 +462,7 @@ impl Database {
     ///
     /// # Arguments
     /// * `conn` - Connection to the sql database
-    /// * `ids` - Identifier of the node/way to which the tag is associated.
-    /// * `keys` - Key of the tag/tags.
-    /// * `values` - Value of the tag/tags.
+    /// * `ways_nodes` - The database reference that a way can have with many nodes.
     ///
     /// # Returns
     /// A result that, if Ok, signifies successful insertion, or if Err, contains an error.
@@ -448,6 +501,206 @@ impl Database {
         let ref_ids: Vec<i64> = way_nodes.iter().map(|way_node| way_node.ref_id).collect();
         let ref_ids_borrowed_slice: &[i64] = &ref_ids;
         col.copy_from_slice(ref_ids_borrowed_slice);
+
+        inserter.execute()?;
+        Ok(())
+    }
+
+    /// Inserts a relation or relations associated with a way, node or another relation into the database.
+    ///
+    /// # Arguments
+    /// * `conn` - Connection to the sql database
+    /// * `relations` - All the relations between nodes, ways and other relations.
+    ///
+    /// # Returns
+    /// A result that, if Ok, signifies successful insertion, or if Err, contains an error.
+    fn insert_relation(
+        &self,
+        conn: &Connection,
+        relations: &[Relation]
+    ) -> Result<(), odbc_api::Error> {
+        let sql = format!(
+            "INSERT INTO [DenmarkMapsDB].[dbo].[relation] (id, version, timestamp, changeset, uid, [user]) VALUES (?, ?, ?, ?, ?, ?)",
+        );
+        // Connect to the database
+        let prepared = conn.prepare(&sql)?;
+
+        // Build buffer description
+        let buffer_description = Relation::get_relation_buffer_descriptor();
+
+        let mut inserter = prepared.into_column_inserter(relations.len(), buffer_description)?;
+        inserter.set_num_rows(relations.len());
+
+        ///// Fill the buffer with values column by column ////
+        // Id insertion
+        let col = inserter
+            .column_mut(0)
+            .as_slice::<i64>()
+            .expect("Failed to insert id for relation");
+        let relation_id_refs: Vec<&i64> = Relation::extract(relations, |relation| &relation.id);
+        let relation_id_slice: Vec<i64> = relation_id_refs.iter().map(|&&id| id).collect();
+        let relation_id_borrowed_slice: &[i64] = &relation_id_slice;
+        col.copy_from_slice(relation_id_borrowed_slice);
+
+        // version insertion
+        let col = inserter
+            .column_mut(1)
+            .as_slice::<i32>()
+            .expect("Failed to insert version for relation");
+        let relation_version_refs: Vec<&i32> = Relation::extract(relations, |relation| &relation.version);
+        let relation_version_slice: Vec<i32> = relation_version_refs.iter().map(|&&version| version).collect();
+        let relation_version_borrowed_slice: &[i32] = &relation_version_slice;
+        col.copy_from_slice(relation_version_borrowed_slice);
+
+        // timestamp insertion
+        let mut col = inserter
+            .column_mut(2)
+            .as_text_view()
+            .expect("Failed to insert timestamp for relation");
+        let relation_timestamp_refs: Vec<&String> = Relation::extract(relations, |relation| &relation.timestamp);
+        let relation_timestamp_slices: Vec<&str> = relation_timestamp_refs.iter().map(|&ts| ts.as_str()).collect();
+        let relation_timestamp_slice: &[&str] = &relation_timestamp_slices;
+
+        for (index, timestamp) in relation_timestamp_slice.iter().enumerate() {
+            col.set_cell(index, Some(timestamp.as_bytes()));
+        }
+
+        // changeset insertion
+        let col = inserter
+            .column_mut(3)
+            .as_slice::<i64>()
+            .expect("Failed to insert changeset for relation");
+        let relation_changeset_refs: Vec<&i64> = Relation::extract(relations, |relation| &relation.changeset);
+        let relation_changeset_slice: Vec<i64> = relation_changeset_refs.iter().map(|&&changeset| changeset).collect();
+        let relation_changeset_borrowed_slice: &[i64] = &relation_changeset_slice;
+        col.copy_from_slice(relation_changeset_borrowed_slice);
+
+        // uid insertion
+        let col = inserter
+            .column_mut(4)
+            .as_slice::<i64>()
+            .expect("Failed to insert uid for relation");
+        let relation_uid_refs: Vec<&i64> = Relation::extract(relations, |relation| &relation.uid);
+        let relation_uid_slice: Vec<i64> = relation_uid_refs.iter().map(|&&uid| uid).collect();
+        let relation_uid_borrowed_slice: &[i64] = &relation_uid_slice;
+        col.copy_from_slice(relation_uid_borrowed_slice);
+
+        // user insertion
+        let mut col = inserter
+            .column_mut(5)
+            .as_text_view()
+            .expect("Failed to insert user for relation");
+        let relation_user_refs: Vec<&String> = Relation::extract(relations, |relation| &relation.user);
+        let relation_user_slices: Vec<&str> = relation_user_refs.iter().map(|&ts| ts.as_str()).collect();
+        let relation_user_slice: &[&str] = &relation_user_slices;
+
+        for (index, user) in relation_user_slice.iter().enumerate() {
+            col.set_cell(index, Some(user.as_bytes()));
+        }
+
+        inserter.execute()?;
+        Ok(())
+    }
+
+    /// Inserts a member or members associated with a relation or relations into the database.
+    ///
+    /// # Arguments
+    /// * `conn` - Connection to the sql database
+    /// * `relation_ids` - The id of the relation which owns this member
+    /// * `members` - All the members between relations.
+    ///
+    /// # Returns
+    /// A result that, if Ok, signifies successful insertion, or if Err, contains an error.
+    fn insert_member(
+        &self,
+        conn: &Connection,
+        relation_ids: &[i64],
+        members: &[Member],
+    ) -> Result<(), odbc_api::Error> {
+        let sql = format!(
+            "INSERT INTO [DenmarkMapsDB].[dbo].[member] (id, relation_id, node_id, way_id, relation_ref_id, member_type, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        );
+        // Connect to the database
+        let prepared = conn.prepare(&sql)?;
+
+        // Build buffer description
+        let buffer_description = Member::get_member_buffer_descriptor();
+
+        let mut inserter = prepared.into_column_inserter(members.len(), buffer_description)?;
+        inserter.set_num_rows(members.len());
+
+        ///// Fill the buffer with values column by column ////
+        // Id insertion
+        let col = inserter
+            .column_mut(0)
+            .as_slice::<i64>()
+            .expect("Failed to insert id for member");
+        let member_id_refs: Vec<&i64> = Member::extract(members, |member| &member.id);
+        let member_id_slice: Vec<i64> = member_id_refs.iter().map(|&&id| id).collect();
+        let member_id_borrowed_slice: &[i64] = &member_id_slice;
+        col.copy_from_slice(member_id_borrowed_slice);
+
+        // relation_id insertion
+        let col = inserter
+            .column_mut(1)
+            .as_slice::<i64>()
+            .expect("Failed to insert relation_id for member");
+        col.copy_from_slice(relation_ids);
+
+        // node_id insertion
+        let col = inserter
+            .column_mut(2)
+            .as_slice::<i64>()
+            .expect("Failed to insert id for member");
+        let member_id_refs: Vec<&i64> = Member::extract(members, |member| &Member::get_optional_id(member, MapsType::Node));
+        let member_id_slice: Vec<i64> = member_id_refs.iter().map(|&&id| id).collect();
+        let member_id_borrowed_slice: &[i64] = &member_id_slice;
+        col.copy_from_slice(member_id_borrowed_slice);
+
+        // way_id insertion
+        let col = inserter
+            .column_mut(3)
+            .as_slice::<i64>()
+            .expect("Failed to insert way_id for member");
+        let member_way_id_refs: Vec<&i64> = Member::extract(members, |member| &Member::get_optional_id(member, MapsType::Way));
+        let member_way_id_slice: Vec<i64> = member_way_id_refs.iter().map(|&&way_id| way_id).collect();
+        let member_way_id_borrowed_slice: &[i64] = &member_way_id_slice;
+        col.copy_from_slice(member_way_id_borrowed_slice);
+
+        // relation_ref_id insertion
+        let col = inserter
+            .column_mut(4)
+            .as_slice::<i64>()
+            .expect("Failed to insert relation_ref_id for member");
+        let member_relation_ref_id_refs: Vec<&i64> = Member::extract(members, |member| &Member::get_optional_id(member, MapsType::Relation));
+        let member_relation_ref_id_slice: Vec<i64> = member_relation_ref_id_refs.iter().map(|&&relation_ref_id| relation_ref_id).collect();
+        let member_relation_ref_id_borrowed_slice: &[i64] = &member_relation_ref_id_slice;
+        col.copy_from_slice(member_relation_ref_id_borrowed_slice);
+
+        // member_type insertion
+        let mut col = inserter
+            .column_mut(5)
+            .as_text_view()
+            .expect("Failed to insert member_type for member");
+        let member_member_type_refs: Vec<&str> = members.iter().map(|member| member.maps_type.as_str()).collect();
+        let member_member_type_slice: &[&str] = &member_member_type_refs;
+
+        for (index, member_type) in member_member_type_slice.iter().enumerate() {
+            col.set_cell(index, Some(member_type.as_bytes()));
+        }
+
+        // role insertion
+        let mut col = inserter
+            .column_mut(6)
+            .as_text_view()
+            .expect("Failed to insert role for member");
+        let member_role_refs: Vec<&String> = Member::extract(members, |member| &member.role);
+        let member_role_slices: Vec<&str> = member_role_refs.iter().map(|&ts| ts.as_str()).collect();
+        let member_role_slice: &[&str] = &member_role_slices;
+
+        for (index, user) in member_role_slice.iter().enumerate() {
+            col.set_cell(index, Some(user.as_bytes()));
+        }
 
         inserter.execute()?;
         Ok(())

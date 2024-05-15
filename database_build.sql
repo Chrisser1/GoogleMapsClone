@@ -39,19 +39,25 @@ CREATE TABLE relation (
 CREATE TABLE member (
     id BIGINT PRIMARY KEY NOT NULL,
     relation_id BIGINT NOT NULL,
-    node_id BIGINT,
-    way_id BIGINT,
-    relation_ref_id BIGINT,
+    node_id BIGINT NULL,
+    way_id BIGINT NULL,
+    relation_ref_id BIGINT NULL,
     member_type VARCHAR(50) NOT NULL,
     role VARCHAR(50) NOT NULL,
+
+    computed_node_id AS (CASE WHEN node_id = -1 THEN NULL ELSE node_id END) PERSISTED,
+    computed_way_id AS (CASE WHEN way_id = -1 THEN NULL ELSE way_id END) PERSISTED,
+    computed_relation_ref_id AS (CASE WHEN relation_ref_id = -1 THEN NULL ELSE relation_ref_id END) PERSISTED,
+
     FOREIGN KEY (relation_id) REFERENCES relation(id),
-    FOREIGN KEY (node_id) REFERENCES node(id),
-    FOREIGN KEY (way_id) REFERENCES way(id),
-    FOREIGN KEY (relation_ref_id) REFERENCES relation(id),
+    FOREIGN KEY (computed_node_id) REFERENCES node(id),
+    FOREIGN KEY (computed_way_id) REFERENCES way(id),
+    FOREIGN KEY (computed_relation_ref_id) REFERENCES relation(id),
+
     CONSTRAINT member_type_check CHECK (
-        (member_type = 'node' AND node_id IS NOT NULL AND way_id IS NULL AND relation_ref_id IS NULL) OR
-        (member_type = 'way' AND way_id IS NOT NULL AND node_id IS NULL AND relation_ref_id IS NULL) OR
-        (member_type = 'relation' AND relation_ref_id IS NOT NULL AND node_id IS NULL AND way_id IS NULL)
+        (member_type = 'node' AND node_id != -1 AND way_id = -1 AND relation_ref_id = -1) OR
+        (member_type = 'way' AND way_id != -1 AND node_id = -1 AND relation_ref_id = -1) OR
+        (member_type = 'relation' AND relation_ref_id != -1 AND node_id = -1 AND way_id = -1)
     )
 );
 
