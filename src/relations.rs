@@ -15,6 +15,19 @@ pub struct Relation {
 }
 
 impl Relation {
+    pub fn new(id: i64, version: i32, timestamp: String, changeset: i64, uid: i64, user: String, member: Vec<Member>, tags: Vec<Tag>) -> Self {
+        Relation {
+            id,
+            version,
+            timestamp,
+            changeset,
+            uid,
+            user,
+            member,
+            tags
+        }
+    }
+
     /// Provides descriptions of the internal buffer structures for ODBC connections, describing
     /// each field of the relation struct in terms of database interaction.
     ///
