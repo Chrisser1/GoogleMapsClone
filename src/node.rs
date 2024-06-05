@@ -1,4 +1,5 @@
-use odbc_api::buffers::BufferDesc;
+use sqlx::{FromRow, sqlite::SqliteRow, Row};
+
 use crate::{tag::Tag, utils::MapsTag};
 /// Represents a geographic node with various properties and metadata.
 ///
@@ -52,25 +53,6 @@ impl Node {
         nodes.iter().map(extractor).collect()
     }
 
-    /// Provides descriptions of the internal buffer structures for ODBC connections, describing
-    /// each field of the Node struct in terms of database interaction.
-    ///
-    /// # Returns
-    /// An array of BufferDesc elements, each describing the memory layout and properties
-    /// of a field in the Node struct for database operations.
-    pub fn get_node_buffer_descriptor() -> [BufferDesc; 8] {
-        [
-            BufferDesc::I64 { nullable: false },   // id
-            BufferDesc::F64 { nullable: false },   // lat
-            BufferDesc::F64 { nullable: false },   // lon
-            BufferDesc::I32 { nullable: false },   // version
-            BufferDesc::Text { max_str_len: 32 },  // timestamp
-            BufferDesc::I64 { nullable: false },   // changeset
-            BufferDesc::I64 { nullable: false },   // uid
-            BufferDesc::Text { max_str_len: 128 }, // user
-        ]
-    }
-
     /// Extracts node ID and tag pairs from a slice of nodes.
     ///
     /// # Arguments
@@ -85,5 +67,48 @@ impl Node {
                 tag: tag.clone(),
             }))
             .collect()
+    }
+}
+
+impl FromRow<'_, SqliteRow> for Node {
+    fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
+        let id: i64 = row.try_get("id")?;
+        let lat: f64 = row.try_get("lat")?;
+        let lon: f64 = row.try_get("lon")?;
+        let version: i32 = row.try_get("version")?;
+        let timestamp: String = row.try_get("timestamp")?;
+        let changeset: i64 = row.try_get("changeset")?;
+        let uid: i64 = row.try_get("uid")?;
+        let user: String = row.try_get("user")?;
+
+        let tags_str: Option<String> = row.try_get("tags").ok();
+        let tags = if let Some(tags_str) = tags_str {
+            tags_str.split(',')
+                .filter_map(|tag| {
+                    let mut parts = tag.splitn(2, ':');
+                    let key = parts.next().unwrap_or_default().to_string();
+                    let value = parts.next().unwrap_or_default().to_string();
+                    if key.is_empty() || value.is_empty() {
+                        None
+                    } else {
+                        Some(Tag { key, value })
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        Ok(Self {
+            id,
+            lat,
+            lon,
+            version,
+            timestamp,
+            changeset,
+            uid,
+            user,
+            tags,
+        })
     }
 }

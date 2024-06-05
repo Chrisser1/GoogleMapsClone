@@ -4,6 +4,8 @@ use std::num::{ParseIntError, ParseFloatError};
 use std::str::Utf8Error;
 use std::error::Error as StdError;
 
+use crate::tag::Tag;
+
 /// Custom error type that can encapsulate different kinds of errors that might occur.
 #[derive(Debug)]
 pub enum ParseError {
@@ -85,18 +87,6 @@ pub fn parse_i32(bytes: Option<&[u8]>) -> Result<i32, ParseError> {
         .ok_or(ParseError::NoDataError)
         .and_then(|bytes| from_utf8(bytes).map_err(Into::into))
         .and_then(|str| str.parse::<i32>().map_err(Into::into))
-}
-
-use thiserror::Error;
-use crate::tag::Tag;
-
-/// Custom error type that can encapsulate both database errors and parsing errors
-#[derive(Error, Debug)]
-pub enum NodeQueryError {
-    #[error("Database error: {0}")]
-    DatabaseError(#[from] odbc_api::Error),
-    #[error("Parsing error: {0}")]
-    ParseError(#[from] ParseError),
 }
 
 #[derive(Debug, Clone, PartialEq)]

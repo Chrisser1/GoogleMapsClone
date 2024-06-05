@@ -1,4 +1,3 @@
-use odbc_api::buffers::BufferDesc;
 use sha2::{Sha256, Digest};
 
 use crate::utils::MapsType;
@@ -27,24 +26,6 @@ impl Member {
             maps_type,
             role,
         }
-    }
-
-    /// Provides descriptions of the internal buffer structures for ODBC connections, describing
-    /// each field of the member struct in terms of database interaction.
-    ///
-    /// # Returns
-    /// An array of BufferDesc elements, each describing the memory layout and properties
-    /// of a field in the Member struct for database operations.
-    pub fn get_member_buffer_descriptor() -> [BufferDesc; 7] {
-        [
-            BufferDesc::I64 { nullable: false },   // id
-            BufferDesc::I64 { nullable: false },   // relation_id
-            BufferDesc::I64 { nullable: false },   // node_id
-            BufferDesc::I64 { nullable: false },   // way_id
-            BufferDesc::I64 { nullable: false },   // relation_ref_id
-            BufferDesc::Text { max_str_len: 32 },  // member_type
-            BufferDesc::Text { max_str_len: 128 }, // role
-        ]
     }
 
     /// Extracts references from a slice of members based on a provided extractor function.

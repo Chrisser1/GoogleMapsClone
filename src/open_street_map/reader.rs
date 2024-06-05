@@ -2,8 +2,10 @@ use quick_xml::Reader;
 use quick_xml::events::Event;
 use std::fs::File;
 use std::io::BufReader;
-use crate::{node, utils::MapsType, Member, Node, Relation, Tag, Way, WayNode};
 use std::error::Error;
+
+use crate::node::Node;
+use crate::tag::Tag;
 
 /// Reads nodes from an OpenStreetMap (OSM) XML file.
 ///
