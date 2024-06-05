@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="Overpass API 0.7.62.1 084b4234">
+<note>The data included in this document is from www.openstreetmap.org. The data is made available under ODbL.</note>
+<meta osm_base="2024-05-09T17:33:18Z"/>
+
+  <bounds minlat="55.6399000" minlon="12.3426000" maxlat="55.6860000" maxlon="12.4648000"/>
+
+  <node id="125491" lat="55.6455320" lon="12.3338740" version="17" timestamp="2016-05-26T07:24:33Z" changeset="39574125" uid="36080" user="nimapper"/>
+  <node id="125495" lat="55.6342035" lon="12.3336134" version="8" timestamp="2016-05-26T07:24:33Z" changeset="39574125" uid="36080" user="nimapper">
+    <tag k="highway" v="motorway_junction"/>
+    <tag k="name" v="Motorvejskryds Vallensbæk"/>
+  </node>
+  <node id="575507" lat="55.6455765" lon="12.3324370" version="12" timestamp="2016-05-26T07:24:33Z" changeset="39574125" uid="36080" user="nimapper">
+    <tag k="highway" v="motorway_junction"/>
+    <tag k="name" v="Motorvejskryds Vallensbæk"/>
+  </node>
+  <node id="575508" lat="55.6426867" lon="12.3360717" version="10" timestamp="2016-05-26T07:24:37Z" changeset="39574125" uid="36080" user="nimapper"/>
+  <node id="576699" lat="55.6412732" lon="12.3499792" version="24" timestamp="2018-08-30T10:46:49Z" changeset="62134859" uid="207581" user="Hjart">
+    <tag k="highway" v="motorway_junction"/>
+    <tag k="name" v="Motorvejskryds Vallensbæk"/>
+  </node>
+</osm>
