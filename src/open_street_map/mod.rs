@@ -1,3 +1,3 @@
-pub mod reader;
+pub mod readers;
 
-pub use reader::*;
+pub use readers::*;
