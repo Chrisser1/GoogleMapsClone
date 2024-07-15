@@ -55,9 +55,6 @@ pub async fn create_tables(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         role VARCHAR(50) NOT NULL,
 
         FOREIGN KEY (relation_id) REFERENCES relation(id),
-        FOREIGN KEY (node_id) REFERENCES node(id),
-        FOREIGN KEY (way_id) REFERENCES way(id),
-        FOREIGN KEY (relation_ref_id) REFERENCES relation(id),
 
         CONSTRAINT member_type_check CHECK (
             (member_type = 'node' AND node_id IS NOT NULL AND way_id IS NULL AND relation_ref_id IS NULL) OR

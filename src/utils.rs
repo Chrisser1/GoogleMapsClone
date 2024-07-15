@@ -1,5 +1,5 @@
 use std::fmt;
-use std::str::from_utf8;
+use std::str::{from_utf8, FromStr};
 use std::num::{ParseIntError, ParseFloatError};
 use std::str::Utf8Error;
 use std::error::Error as StdError;
@@ -13,6 +13,7 @@ pub enum ParseError {
     IntError(ParseIntError),
     FloatError(ParseFloatError),
     NoDataError,
+    InvalidMapsTypeError,
 }
 
 impl From<Utf8Error> for ParseError {
@@ -40,6 +41,7 @@ impl fmt::Display for ParseError {
             ParseError::IntError(e) => write!(f, "Integer parsing error: {}", e),
             ParseError::FloatError(e) => write!(f, "Floating point parsing error: {}", e),
             ParseError::NoDataError => write!(f, "No data available"),
+            ParseError::InvalidMapsTypeError => write!(f, "Invalid MapsType"),
         }
     }
 }
@@ -51,6 +53,7 @@ impl StdError for ParseError {
             ParseError::IntError(e) => Some(e),
             ParseError::FloatError(e) => Some(e),
             ParseError::NoDataError => None,
+            ParseError::InvalidMapsTypeError => None,
         }
     }
 }
@@ -104,6 +107,19 @@ impl MapsType {
             MapsType::Way => "way",
             MapsType::Relation => "relation",
             MapsType::Other(s) => s,
+        }
+    }
+}
+
+impl FromStr for MapsType {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "node" => Ok(MapsType::Node),
+            "way" => Ok(MapsType::Way),
+            "relation" => Ok(MapsType::Relation),
+            other => Ok(MapsType::Other(Box::leak(Box::new(other.to_string())))),
         }
     }
 }

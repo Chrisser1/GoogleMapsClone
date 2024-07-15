@@ -1,6 +1,6 @@
 use sqlx::{FromRow, SqlitePool};
 
-use crate::{node::Node, way::Way};
+use crate::{node::Node, relation::Relation, way::Way};
 
 pub async fn fetch_all_nodes_and_tags(sqlite_pool: &SqlitePool) -> Result<Vec<Node>, sqlx::Error> {
     let query = "
@@ -71,4 +71,47 @@ pub async fn fetch_all_ways_and_tags(sqlite_pool: &SqlitePool) -> Result<Vec<Way
     }
 
     Ok(ways)
+}
+
+pub async fn fetch_all_relations_and_tags(sqlite_pool: &SqlitePool) -> Result<Vec<Relation>, sqlx::Error> {
+    let query = "
+        SELECT
+            r.id, r.version, r.timestamp, r.changeset, r.uid, r.[user],
+            relation_tags.tags,
+            member.members
+        FROM
+            relation r
+        LEFT JOIN (
+            SELECT
+                rt.relation_id,
+                GROUP_CONCAT(rt.[key] || ':' || rt.value, ',') as tags
+            FROM
+                relation_tags rt
+            GROUP BY
+                rt.relation_id
+        ) as relation_tags ON r.id = relation_tags.relation_id
+        LEFT JOIN (
+            SELECT
+                m.relation_id,
+                GROUP_CONCAT(m.id || ':' || IFNULL(m.node_id, '') || ':' || IFNULL(m.way_id, '') || ':' || IFNULL(m.relation_ref_id, '') || ':' || m.member_type || ':' || m.role, ',') as members
+            FROM
+                member m
+            GROUP BY
+                m.relation_id
+        ) as member ON r.id = member.relation_id
+    ";
+
+    let fetched_result = sqlx::query(query)
+        .fetch_all(sqlite_pool)
+        .await?;
+
+    let mut relations = Vec::new();
+
+    // Process fetched rows
+    for row in fetched_result {
+        let relation: Relation = Relation::from_row(&row)?;
+        relations.push(relation);
+    }
+
+    Ok(relations)
 }
