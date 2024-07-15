@@ -3,6 +3,8 @@ use std::str::{from_utf8, FromStr};
 use std::num::{ParseIntError, ParseFloatError};
 use std::str::Utf8Error;
 use std::error::Error as StdError;
+use std::fs;
+use std::io::{self, Write};
 
 use crate::tag::Tag;
 
@@ -56,40 +58,6 @@ impl StdError for ParseError {
             ParseError::InvalidMapsTypeError => None,
         }
     }
-}
-
-/// Converts bytes to a string, assuming UTF-8 encoding.
-pub fn parse_string(bytes: Option<&[u8]>) -> Result<String, ParseError> {
-    match bytes {
-        Some(data) => from_utf8(data)
-            .map(String::from)
-            .map_err(ParseError::Utf8Error),  // Convert Utf8Error to ParseError
-        None => Err(ParseError::NoDataError),
-    }
-}
-
-/// Parses bytes as a 64-bit signed integer.
-pub fn parse_i64(bytes: Option<&[u8]>) -> Result<i64, ParseError> {
-    bytes
-        .ok_or(ParseError::NoDataError)
-        .and_then(|bytes| from_utf8(bytes).map_err(Into::into))
-        .and_then(|str| str.parse::<i64>().map_err(Into::into))
-}
-
-/// Parses bytes as a 64-bit floating point number.
-pub fn parse_f64(bytes: Option<&[u8]>) -> Result<f64, ParseError> {
-    bytes
-        .ok_or(ParseError::NoDataError)
-        .and_then(|bytes| from_utf8(bytes).map_err(Into::into))
-        .and_then(|str| str.parse::<f64>().map_err(Into::into))
-}
-
-/// Parses bytes as a 32-bit signed integer.
-pub fn parse_i32(bytes: Option<&[u8]>) -> Result<i32, ParseError> {
-    bytes
-        .ok_or(ParseError::NoDataError)
-        .and_then(|bytes| from_utf8(bytes).map_err(Into::into))
-        .and_then(|str| str.parse::<i32>().map_err(Into::into))
 }
 
 #[derive(Debug, Clone, PartialEq)]
