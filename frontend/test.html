@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <title>OSM Maps</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+    }
+</style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import init, { greet } from './process-maps/pkg/process_maps.js'
+
+        async function run() {
+            await init();
+            greet();
+        }
+
+        run();
+    </script>
+</body>
+</html>
