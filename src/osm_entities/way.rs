@@ -1,6 +1,8 @@
 use sqlx::{FromRow, sqlite::SqliteRow, Row};
 use crate::osm_entities::Tag;
 
+use super::SimpleNode;
+
 #[derive(Debug, Clone)]
 pub struct Way {
     pub id: i64,
@@ -113,3 +115,59 @@ impl FromRow<'_, SqliteRow> for Way {
         })
     }
 }
+
+/// Represents a simplified way containing its nodes and relevant tags.
+#[derive(Debug, Clone)]
+pub struct RenderableWay {
+    pub nodes: Vec<SimpleNode>, // Directly hold the node data for rendering
+    pub tags: Vec<Tag>,         // Tags associated with this way (e.g., "highway", "coastline", etc.)
+}
+
+impl FromRow<'_, SqliteRow> for RenderableWay {
+    fn from_row(row: &'_ SqliteRow) -> Result<Self, sqlx::Error> {
+        // Parse the tags from the row
+        let tags_str: Option<String> = row.try_get("tags").ok();
+        let tags = if let Some(tags_str) = tags_str {
+            tags_str.split(',')
+                .filter_map(|tag| {
+                    let mut parts = tag.splitn(2, ':');
+                    let key = parts.next().unwrap_or_default().to_string();
+                    let value = parts.next().unwrap_or_default().to_string();
+                    if key.is_empty() || value.is_empty() {
+                        None
+                    } else {
+                        Some(Tag { key, value })
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        // Parse node references (latitude and longitude)
+        let node_refs_str: Option<String> = row.try_get("node_refs").ok();
+        let nodes = if let Some(node_refs_str) = node_refs_str {
+            node_refs_str.split(',')
+                .filter_map(|node_ref| {
+                    let coords: Vec<&str> = node_ref.split_whitespace().collect();
+                    if coords.len() == 2 {
+                        Some(SimpleNode {
+                            lat: coords[0].parse().ok()?,
+                            lon: coords[1].parse().ok()?,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        Ok(Self {
+            nodes,
+            tags,
+        })
+    }
+}
+

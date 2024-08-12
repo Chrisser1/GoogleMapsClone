@@ -125,13 +125,12 @@ pub fn lat_lon_to_screen(lat: f64, lon: f64, top_left: (f64, f64), bottom_right:
     // Normalize the longitude (x-axis)
     let normalized_x = (lon - top_left.1) / (bottom_right.1 - top_left.1);
 
-    // Normalize the latitude (y-axis), but note that latitude increases as you go north, so we invert it
-    let normalized_y = (lat - bottom_right.0) / (top_left.0 - bottom_right.0);
+    // Normalize the latitude (y-axis), invert to account for the natural increase in latitudes as you move north
+    let normalized_y = (top_left.0 - lat) / (top_left.0 - bottom_right.0);
 
     // Map to the range [-1, 1] for NDC
     let screen_x = normalized_x * 2.0 - 1.0;
-    let screen_y = 1.0 - normalized_y * 2.0; // Invert y to flip the axis correctly
+    let screen_y = normalized_y * 2.0 - 1.0;
 
     (screen_x as f32, screen_y as f32)
 }
-

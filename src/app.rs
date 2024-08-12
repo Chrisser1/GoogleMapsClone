@@ -11,7 +11,7 @@ use sqlx::{
     migrate::MigrateDatabase, Pool, Sqlite, SqlitePool
 };
 
-use crate::{database::{create_tables, fetch_all_nodes_and_tags}, fetcher::read_openstreet_map_file, osm_entities::Node, texture, utils::lat_lon_to_screen, DB_URL};
+use crate::{database::{create_tables, fetch_all_nodes_and_tags, fetch_all_renderable_ways}, fetcher::read_openstreet_map_file, osm_entities::{Node, RenderableWay}, texture, utils::lat_lon_to_screen, DB_URL};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -50,7 +50,7 @@ struct State<'a> {
     diffuse_texture: texture::Texture,
     top_left_corner: (f64, f64),
     bottom_right_corner: (f64, f64),
-    nodes: Vec<Node>,
+    renderable_ways : Vec<RenderableWay>,
     pool: Pool<Sqlite>,
 }
 
@@ -72,16 +72,16 @@ impl<'a> State<'a> {
         // // Read and process the chosen map file
         // read_openstreet_map_file(&pool).await;
 
-        let top_left_corner: (f64, f64) = (55.0407000, 11.3400000);
-        let bottom_right_corner: (f64, f64) = (55.0220000, 11.3779000);
+        let top_left_corner: (f64, f64) = (55.0407000, 11.3377000);
+        let bottom_right_corner: (f64, f64) = (55.0210000, 11.3794000);
 
-        // Get the nodes from the database
-        let nodes = match fetch_all_nodes_and_tags(&pool).await {
-            Ok(nodes) => nodes,
-            Err(error) => panic!("There was a problem fetching the nodes: {:?}", error),
+        // Get the renderable ways from the database
+        let renderable_ways = match fetch_all_renderable_ways(&pool).await {
+            Ok(renderable_ways) => renderable_ways,
+            Err(error) => panic!("There was a problem fetching the renderable ways: {:?}", error),
         };
 
-        println!("There are {} nodes", nodes.len());
+        println!("There are {} renderable_ways", renderable_ways.len());
 
         let size = window.inner_size();
         // The instance is a handle to our GPU
@@ -145,6 +145,14 @@ impl<'a> State<'a> {
             desired_maximum_frame_latency: 2,
             view_formats: vec![],
         };
+
+        let building_texture_bytes = include_bytes!("../utils/textures/building.png");
+        let highway_texture_bytes = include_bytes!("../utils/textures/highway.png");
+        let coastline_texture_bytes = include_bytes!("../utils/textures/coastline.png");
+
+        let building_texture = texture::Texture::from_bytes(&device, &queue, building_texture_bytes, "building.png").unwrap();
+        let highway_texture = texture::Texture::from_bytes(&device, &queue, highway_texture_bytes, "highway.png").unwrap();
+        let coastline_texture = texture::Texture::from_bytes(&device, &queue, coastline_texture_bytes, "coastline.png").unwrap();
 
         let diffuse_bytes = include_bytes!("../utils/textures/node.png");
         let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
@@ -243,7 +251,7 @@ impl<'a> State<'a> {
             cache: None,
         });
 
-        let (vertices, indices) = generate_vertices_and_indices_from_nodes(&nodes, top_left_corner, bottom_right_corner);
+        let (vertices, indices) = generate_vertices_and_indices_from_renderable_ways(&renderable_ways, top_left_corner, bottom_right_corner);
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -276,7 +284,7 @@ impl<'a> State<'a> {
             num_indices,
             diffuse_bind_group,
             diffuse_texture,
-            nodes,
+            renderable_ways,
             pool,
             top_left_corner,
             bottom_right_corner,
@@ -302,8 +310,12 @@ impl<'a> State<'a> {
     }
 
     fn update(&mut self) {
-        // Generate vertices and indices from nodes
-        let (vertices, indices) = generate_vertices_and_indices_from_nodes(&self.nodes, self.top_left_corner, self.bottom_right_corner);
+        // TODO
+    }
+
+    fn update_buffers(&mut self) {
+        // Generate vertices and indices from renderable_ways
+        let (vertices, indices) = generate_vertices_and_indices_from_renderable_ways(&self.renderable_ways, self.top_left_corner, self.bottom_right_corner);
 
         // Update the vertex buffer with the node vertices
         self.vertex_buffer = self.device.create_buffer_init(
@@ -374,42 +386,182 @@ impl<'a> State<'a> {
     }
 }
 
-fn generate_vertices_and_indices_from_nodes(nodes: &Vec<Node>, top_left: (f64, f64), bottom_right: (f64, f64)) -> (Vec<Vertex>, Vec<u16>) {
+fn generate_vertices_and_indices_from_renderable_ways(renderable_ways: &Vec<RenderableWay>, top_left: (f64, f64), bottom_right: (f64, f64)) -> (Vec<Vertex>, Vec<u16>) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
-    for (i, node) in nodes.iter().enumerate() {
+    for way in renderable_ways {
+        // Determine how to visualize this way based on its tags
+        let is_coastline = way.tags.iter().any(|tag| tag.key == "natural" && tag.value == "coastline");
+        let is_highway = way.tags.iter().any(|tag| tag.key == "highway" && tag.value == "track");
+        let is_building = way.tags.iter().any(|tag| tag.key == "building");
+
+        if is_coastline {
+            // Handle coastline rendering (e.g., as lines)
+            generate_line_vertices_and_indices(way, top_left, bottom_right, 0.002, &mut vertices, &mut indices);
+        } else if is_highway {
+            // Handle highway rendering (e.g., as thick lines or strips)
+            generate_line_vertices_and_indices(way, top_left, bottom_right, 0.005, &mut vertices, &mut indices);
+        } else if is_building {
+            // Handle building rendering (e.g., as polygons)
+            generate_polygon_vertices_and_indices(way, top_left, bottom_right, &mut vertices, &mut indices);
+        } else {
+            // Handle other types of ways or default rendering (e.g., as lines)
+            generate_line_vertices_and_indices(way, top_left, bottom_right, 0.002, &mut vertices, &mut indices);
+        }
+    }
+    // println!("{:#?}", vertices);
+    (vertices, indices)
+}
+
+fn generate_line_vertices_and_indices(
+    way: &RenderableWay,
+    top_left: (f64, f64),
+    bottom_right: (f64, f64),
+    thickness: f32, // Parameter to control the thickness
+    vertices: &mut Vec<Vertex>,
+    indices: &mut Vec<u16>,
+) {
+    let base_index = vertices.len() as u16;
+
+    // Loop through the nodes in the way
+    for (i, node) in way.nodes.iter().enumerate() {
         let (x, y) = lat_lon_to_screen(node.lat, node.lon, top_left, bottom_right);
-        let size = 0.002; // size of the quad
 
-        let base_index = i as u16 * 4;
+        // If this isn't the first node, calculate direction to the previous node
+        if i > 0 {
+            let (prev_x, prev_y) = lat_lon_to_screen(
+                way.nodes[i - 1].lat,
+                way.nodes[i - 1].lon,
+                top_left,
+                bottom_right,
+            );
 
-        // Define the four vertices of the quad
+            // Calculate the direction vector from the previous point to the current point
+            let direction = (
+                x - prev_x,
+                y - prev_y,
+            );
+
+            // Normalize the direction vector
+            let length = (direction.0.powi(2) + direction.1.powi(2)).sqrt();
+            let direction = (
+                direction.0 / length,
+                direction.1 / length,
+            );
+
+            // Calculate the perpendicular vector to the line direction
+            let perpendicular = (
+                -direction.1 * thickness / 2.0,
+                direction.0 * thickness / 2.0,
+            );
+
+            // Define the vertices for the thick line
+            vertices.push(Vertex {
+                position: [prev_x + perpendicular.0, prev_y + perpendicular.1, 0.0],
+                tex_coords: [0.0, 0.0],
+            });
+            vertices.push(Vertex {
+                position: [prev_x - perpendicular.0, prev_y - perpendicular.1, 0.0],
+                tex_coords: [1.0, 0.0],
+            });
+            vertices.push(Vertex {
+                position: [x + perpendicular.0, y + perpendicular.1, 0.0],
+                tex_coords: [0.0, 1.0],
+            });
+            vertices.push(Vertex {
+                position: [x - perpendicular.0, y - perpendicular.1, 0.0],
+                tex_coords: [1.0, 1.0],
+            });
+
+            // Add the indices to create two triangles forming a quad
+            indices.extend_from_slice(&[
+                base_index + (i as u16 - 1) * 4,
+                base_index + (i as u16 - 1) * 4 + 1,
+                base_index + i as u16 * 4,
+
+                base_index + i as u16 * 4,
+                base_index + (i as u16 - 1) * 4 + 1,
+                base_index + i as u16 * 4 + 1,
+            ]);
+        }
+    }
+
+    // Connect the last node to the first node to close the loop
+    if way.nodes.len() > 1 {
+        let first_node = &way.nodes[0];
+        let last_node = &way.nodes[way.nodes.len() - 1];
+
+        let (x1, y1) = lat_lon_to_screen(first_node.lat, first_node.lon, top_left, bottom_right);
+        let (x2, y2) = lat_lon_to_screen(last_node.lat, last_node.lon, top_left, bottom_right);
+
+        // Calculate the direction vector from the last point to the first point
+        let direction = (
+            x1 - x2,
+            y1 - y2,
+        );
+
+        // Normalize the direction vector
+        let length = (direction.0.powi(2) + direction.1.powi(2)).sqrt();
+        let direction = (
+            direction.0 / length,
+            direction.1 / length,
+        );
+
+        // Calculate the perpendicular vector to the line direction
+        let perpendicular = (
+            -direction.1 * thickness / 2.0,
+            direction.0 * thickness / 2.0,
+        );
+
+        // Define the vertices for the thick line from last node to first node
         vertices.push(Vertex {
-            position: [x - size, y - size, 0.0],
+            position: [x2 + perpendicular.0, y2 + perpendicular.1, 0.0],
             tex_coords: [0.0, 0.0],
         });
         vertices.push(Vertex {
-            position: [x + size, y - size, 0.0],
+            position: [x2 - perpendicular.0, y2 - perpendicular.1, 0.0],
             tex_coords: [1.0, 0.0],
         });
         vertices.push(Vertex {
-            position: [x + size, y + size, 0.0],
-            tex_coords: [1.0, 1.0],
-        });
-        vertices.push(Vertex {
-            position: [x - size, y + size, 0.0],
+            position: [x1 + perpendicular.0, y1 + perpendicular.1, 0.0],
             tex_coords: [0.0, 1.0],
         });
+        vertices.push(Vertex {
+            position: [x1 - perpendicular.0, y1 - perpendicular.1, 0.0],
+            tex_coords: [1.0, 1.0],
+        });
 
-        // Define the two triangles that make up the quad
+        // Add the indices to create two triangles forming a quad to close the loop
         indices.extend_from_slice(&[
-            base_index, base_index + 1, base_index + 2, // First triangle
-            base_index, base_index + 2, base_index + 3, // Second triangle
+            base_index + (way.nodes.len() as u16 - 1) * 4,
+            base_index + (way.nodes.len() as u16 - 1) * 4 + 1,
+            base_index,
+
+            base_index,
+            base_index + (way.nodes.len() as u16 - 1) * 4 + 1,
+            base_index + 1,
         ]);
     }
+}
 
-    (vertices, indices)
+fn generate_polygon_vertices_and_indices(way: &RenderableWay, top_left: (f64, f64), bottom_right: (f64, f64), vertices: &mut Vec<Vertex>, indices: &mut Vec<u16>) {
+    let base_index = vertices.len() as u16;
+
+    for node in &way.nodes {
+        let (x, y) = lat_lon_to_screen(node.lat, node.lon, top_left, bottom_right);
+        vertices.push(Vertex {
+            position: [x, y, 0.0],
+            tex_coords: [0.0, 0.0], // Placeholder texture coordinates
+        });
+    }
+
+    // Triangulation: For a simple polygon, assume that nodes are ordered and define a fan from the first vertex
+    for i in 1..way.nodes.len() as u16 - 1 {
+        indices.extend_from_slice(&[
+            base_index, base_index + i, base_index + i + 1,
+        ]);
+    }
 }
 
 pub async fn run() {

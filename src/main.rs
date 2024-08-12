@@ -17,7 +17,6 @@ const DB_URL: &str = "sqlite://database/sqlite.db";
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     run().await;
-    
 
     // // Read and process the chosen map file
     // read_openstreet_map_file(&pool).await?;

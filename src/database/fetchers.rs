@@ -1,6 +1,48 @@
 use sqlx::{FromRow, SqlitePool};
 
-use crate::osm_entities::{Node, Relation, Way};
+use crate::osm_entities::{Node, Relation, RenderableWay, Way};
+
+pub async fn fetch_all_renderable_ways(sqlite_pool: &SqlitePool) -> Result<Vec<RenderableWay>, sqlx::Error> {
+    let query = "
+        SELECT
+        w.id,
+        GROUP_CONCAT(DISTINCT n.lat || ' ' || n.lon ORDER BY wn.rowid) AS node_refs,
+        way_tags.tags
+    FROM
+        way w
+    LEFT JOIN way_nodes wn ON w.id = wn.way_id
+    LEFT JOIN node n ON wn.ref_id = n.id
+    LEFT JOIN (
+        SELECT
+            wt.way_id,
+            GROUP_CONCAT(wt.[key] || ':' || wt.value) AS tags
+        FROM
+            way_tags wt
+        GROUP BY
+            wt.way_id
+    ) AS way_tags ON w.id = way_tags.way_id
+    GROUP BY
+        w.id
+    ORDER BY
+        w.id;
+    ";
+
+    let fetched_result = sqlx::query(query)
+        .fetch_all(sqlite_pool)
+        .await?;
+
+    let mut renderable_ways = Vec::new();
+
+    // Process fetched rows
+    for row in fetched_result {
+        let renderable_way: RenderableWay = RenderableWay::from_row(&row)?;
+        renderable_ways.push(renderable_way);
+    }
+
+    println!("{:#?}", renderable_ways.first().unwrap());
+
+    Ok(renderable_ways)
+}
 
 pub async fn fetch_all_nodes_and_tags(sqlite_pool: &SqlitePool) -> Result<Vec<Node>, sqlx::Error> {
     let query = "

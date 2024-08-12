@@ -116,3 +116,10 @@ impl FromRow<'_, SqliteRow> for Node {
         })
     }
 }
+
+/// Represents a simplified node with only the necessary information for rendering.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SimpleNode {
+    pub lat: f64,
+    pub lon: f64,
+}
